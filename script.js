@@ -11,6 +11,9 @@ let cart = {};
 // Cotización generada (clon del carrito con opciones de edición y equivalentes)
 let quote = {};
 
+// Índice invertido de palabras clave en descripciones para búsqueda por descripción
+let descIndex = {};
+
 // Inicializa la aplicación
 async function init() {
   // Cargar datos de productos
@@ -20,6 +23,9 @@ async function init() {
   } catch (err) {
     console.error('Error al cargar la lista de precios:', err);
   }
+
+  // Construir índice de descripciones después de cargar los productos
+  buildDescIndex();
   // Actualizar año en el footer
   document.getElementById('year').textContent = new Date().getFullYear();
 
@@ -162,6 +168,34 @@ function formatCurrency(value) {
 // Ejecutar init al cargar
 window.addEventListener('DOMContentLoaded', init);
 
+/**
+ * Construye un índice invertido de palabras clave a productos a partir de la
+ * descripción de cada producto. El índice se utiliza para sugerir
+ * coincidencias basadas en descripciones cuando no hay coincidencia exacta
+ * por código. Solo se indexan palabras de al menos 4 caracteres para
+ * reducir ruido.
+ */
+function buildDescIndex() {
+  descIndex = {};
+  products.forEach((prod) => {
+    // Normalizar la descripción: minúsculas y solo letras y números
+    const text = prod.descripcion
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]+/g, ' ');
+    const tokens = new Set(
+      text
+        .split(/\s+/)
+        .filter((w) => w.length >= 4) // solo palabras con longitud >=4
+    );
+    tokens.forEach((tok) => {
+      if (!descIndex[tok]) {
+        descIndex[tok] = [];
+      }
+      descIndex[tok].push(prod);
+    });
+  });
+}
+
 // Configura el botón para generar la cotización al cargar
 window.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('generateQuote');
@@ -182,11 +216,21 @@ function generateQuote() {
   // Clonar elementos del carrito
   Object.keys(cart).forEach((code) => {
     const { item, cantidad, match } = cart[code];
+    // Convertir el tipo de coincidencia del carrito al formato de cotización
+    let matchType;
+    if (match === undefined) {
+      matchType = 'exact';
+    } else if (match === true) {
+      matchType = 'exact';
+    } else if (match === false) {
+      matchType = 'unmatched';
+    } else {
+      matchType = match;
+    }
     quote[code] = {
       item: item,
       cantidad: cantidad,
-      // Usar la propiedad match del carrito si está definida, de lo contrario asumir coincidencia exacta
-      match: match !== undefined ? match : true,
+      match: matchType,
     };
   });
   // Mostrar la sección de cotización
@@ -206,7 +250,14 @@ function updateQuoteDisplay() {
     total += subtotal;
     const tr = document.createElement('tr');
     // Tipo de coincidencia
-    const tipoTexto = match ? 'Exacto' : 'Equivalente';
+    let tipoTexto;
+    if (record.match === 'exact' || record.match === true) {
+      tipoTexto = 'Exacto';
+    } else if (record.match === 'approx') {
+      tipoTexto = 'Alternativa';
+    } else {
+      tipoTexto = 'Equivalente';
+    }
     // Crear lista de opciones para cambio de producto
     const select = document.createElement('select');
     products.forEach((prod) => {
@@ -224,9 +275,9 @@ function updateQuoteDisplay() {
       if (newItem) {
         // Actualizar el registro
         const originalCode = code;
-        // Si se selecciona un producto diferente, marcar como equivalente
+        // Si se selecciona un producto diferente, marcar como alternativa; si es el mismo código, es exacto
         record.item = newItem;
-        record.match = newItem.codigo === originalCode;
+        record.match = newItem.codigo === originalCode ? 'exact' : 'approx';
         // Si el código cambia, también actualizar la clave del objeto quote
         if (newItem.codigo !== originalCode) {
           delete quote[originalCode];
@@ -339,25 +390,114 @@ function handleFileUpload(event) {
         if (cart[matchItem.codigo]) {
           cart[matchItem.codigo].cantidad += 1;
         } else {
-          cart[matchItem.codigo] = { item: matchItem, cantidad: 1, match: true };
+          // match: 'exact' indica coincidencia exacta
+          cart[matchItem.codigo] = { item: matchItem, cantidad: 1, match: 'exact' };
         }
       }
     });
-    // Agregar tokens no encontrados como equivalentes
+    // Buscar productos similares para tokens no encontrados
     unmatchedTokens.forEach((token) => {
-      const placeholder = {
-        codigo: token.toUpperCase(),
-        descripcion: `Producto solicitado: ${token.toUpperCase()}`,
-        marca: 'N/A',
-        categoria: 'N/A',
-        precio: 0,
-      };
-      if (cart[token.toUpperCase()]) {
-        cart[token.toUpperCase()].cantidad += 1;
+      // Función para calcular la distancia de Levenshtein
+      function levenshteinDistance(a, b) {
+        const dp = [];
+        for (let i = 0; i <= a.length; i++) {
+          dp[i] = new Array(b.length + 1);
+          dp[i][0] = i;
+        }
+        for (let j = 0; j <= b.length; j++) {
+          dp[0][j] = j;
+        }
+        for (let i = 1; i <= a.length; i++) {
+          for (let j = 1; j <= b.length; j++) {
+            if (a[i - 1] === b[j - 1]) {
+              dp[i][j] = dp[i - 1][j - 1];
+            } else {
+              dp[i][j] = Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]) + 1;
+            }
+          }
+        }
+        return dp[a.length][b.length];
+      }
+      // Encuentra el producto con mayor similitud basado en el código
+      function findSimilarProduct(tok) {
+        let bestMatch = null;
+        let bestSim = 0;
+        const tokLower = tok.toLowerCase();
+        for (const prod of products) {
+          const codeLower = prod.codigo.toLowerCase();
+          // Calcular similitud usando la distancia de Levenshtein
+          const dist = levenshteinDistance(tokLower, codeLower);
+          const maxLen = Math.max(tokLower.length, codeLower.length);
+          const sim = 1 - dist / maxLen;
+          if (sim > bestSim) {
+            bestSim = sim;
+            bestMatch = prod;
+          }
+        }
+        // Considerar coincidencias con similitud >= 0.7 como alternativas
+        return bestSim >= 0.7 ? bestMatch : null;
+      }
+      const similarItem = findSimilarProduct(token);
+      if (similarItem) {
+        // Agregar como alternativa
+        if (cart[similarItem.codigo]) {
+          cart[similarItem.codigo].cantidad += 1;
+        } else {
+          cart[similarItem.codigo] = { item: similarItem, cantidad: 1, match: 'approx' };
+        }
       } else {
-        cart[token.toUpperCase()] = { item: placeholder, cantidad: 1, match: false };
+        // Si no se encuentra similitud suficiente, agregar como solicitado
+        const placeholder = {
+          codigo: token.toUpperCase(),
+          descripcion: `Producto solicitado: ${token.toUpperCase()}`,
+          marca: 'N/A',
+          categoria: 'N/A',
+          precio: 0,
+        };
+        const code = token.toUpperCase();
+        if (cart[code]) {
+          cart[code].cantidad += 1;
+        } else {
+          cart[code] = { item: placeholder, cantidad: 1, match: 'unmatched' };
+        }
       }
     });
+
+    // Sugerir productos basados en descripciones si no hay coincidencia de código
+    try {
+      // Normalizar el contenido para búsqueda por descripciones
+      const descContent = lowerContent.replace(/[^a-z0-9 ]+/g, ' ');
+      // Conjunto de palabras únicas en el documento de al menos 4 caracteres
+      const descTokens = new Set(
+        descContent.split(/\s+/).filter((w) => w.length >= 4)
+      );
+      const descCounts = {};
+      descTokens.forEach((tok) => {
+        if (descIndex[tok]) {
+          descIndex[tok].forEach((prod) => {
+            descCounts[prod.codigo] = (descCounts[prod.codigo] || 0) + 1;
+          });
+        }
+      });
+      // Ordenar productos candidatos por número de coincidencias desc
+      const sortedCodes = Object.keys(descCounts).sort(
+        (a, b) => descCounts[b] - descCounts[a]
+      );
+      let suggestionsAdded = 0;
+      for (const c of sortedCodes) {
+        if (suggestionsAdded >= 5) break;
+        // Evitar añadir productos ya presentes en el carrito (coincidencia exacta o alternativa existente)
+        if (!cart[c]) {
+          const prod = products.find((p) => p.codigo === c);
+          if (prod) {
+            cart[c] = { item: prod, cantidad: 1, match: 'approx' };
+            suggestionsAdded++;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error al sugerir productos por descripción:', e);
+    }
     // Actualizar la visualización del carrito tras procesar el archivo
     updateCartDisplay();
   };
