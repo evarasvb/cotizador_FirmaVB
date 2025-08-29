@@ -160,6 +160,68 @@ section h2 {
   color: #003366;
 }
 
+/* Contenedor y estilo para el botón de generar cotización */
+.generate-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.generate-button {
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  color: #fff;
+  background-color: #28a745;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.generate-button:hover {
+  background-color: #218838;
+}
+
+/* Estilos para la sección de cotización */
+.quote-section {
+  margin-top: 2rem;
+}
+
+.quote-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.quote-table th,
+.quote-table td {
+  padding: 0.6rem;
+  text-align: left;
+  border-bottom: 1px solid #eaeaea;
+}
+
+.quote-table th {
+  background-color: #f3f3f3;
+  color: #003366;
+}
+
+.quote-table tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.quote-table input[type="number"],
+.quote-table select {
+  width: 100%;
+  padding: 0.2rem;
+  box-sizing: border-box;
+}
+
+.quote-table .remove-button {
+  color: #dc3545;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
 footer {
   text-align: center;
   padding: 1rem;

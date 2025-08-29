@@ -8,6 +8,9 @@ let products = [];
 // Carrito representado como un objeto {codigo: {item, cantidad}}
 let cart = {};
 
+// Cotización generada (clon del carrito con opciones de edición y equivalentes)
+let quote = {};
+
 // Inicializa la aplicación
 async function init() {
   // Cargar datos de productos
@@ -152,3 +155,124 @@ function formatCurrency(value) {
 
 // Ejecutar init al cargar
 window.addEventListener('DOMContentLoaded', init);
+
+// Configura el botón para generar la cotización al cargar
+window.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('generateQuote');
+  if (btn) {
+    btn.addEventListener('click', generateQuote);
+  }
+});
+
+// Genera la cotización a partir de los elementos del carrito
+function generateQuote() {
+  // Si no hay productos en el carrito, no hacer nada
+  if (Object.keys(cart).length === 0) {
+    alert('El carrito está vacío. Agregue productos antes de generar la cotización.');
+    return;
+  }
+  // Reiniciar la cotización
+  quote = {};
+  // Clonar elementos del carrito
+  Object.keys(cart).forEach((code) => {
+    const { item, cantidad } = cart[code];
+    quote[code] = {
+      item: item,
+      cantidad: cantidad,
+      match: true, // inicialmente se considera que es coincidencia exacta
+    };
+  });
+  // Mostrar la sección de cotización
+  document.getElementById('quoteSection').style.display = 'block';
+  updateQuoteDisplay();
+}
+
+// Actualiza la sección de cotización en el DOM
+function updateQuoteDisplay() {
+  const tbody = document.getElementById('quoteBody');
+  tbody.innerHTML = '';
+  let total = 0;
+  Object.keys(quote).forEach((code) => {
+    const record = quote[code];
+    const { item, cantidad, match } = record;
+    const subtotal = item.precio * cantidad;
+    total += subtotal;
+    const tr = document.createElement('tr');
+    // Tipo de coincidencia
+    const tipoTexto = match ? 'Exacto' : 'Equivalente';
+    // Crear lista de opciones para cambio de producto
+    const select = document.createElement('select');
+    products.forEach((prod) => {
+      const option = document.createElement('option');
+      option.value = prod.codigo;
+      option.textContent = `${prod.descripcion}`;
+      if (prod.codigo === item.codigo) {
+        option.selected = true;
+      }
+      select.appendChild(option);
+    });
+    select.addEventListener('change', (e) => {
+      const newCode = e.target.value;
+      const newItem = products.find((p) => p.codigo === newCode);
+      if (newItem) {
+        // Actualizar el registro
+        const originalCode = code;
+        // Si se selecciona un producto diferente, marcar como equivalente
+        record.item = newItem;
+        record.match = newItem.codigo === originalCode;
+        // Si el código cambia, también actualizar la clave del objeto quote
+        if (newItem.codigo !== originalCode) {
+          delete quote[originalCode];
+          quote[newItem.codigo] = record;
+        }
+        updateQuoteDisplay();
+      }
+    });
+    // Crear input de cantidad
+    const qtyInput = document.createElement('input');
+    qtyInput.type = 'number';
+    qtyInput.min = '1';
+    qtyInput.value = cantidad;
+    qtyInput.addEventListener('change', (e) => {
+      const q = parseInt(e.target.value);
+      if (q > 0) {
+        record.cantidad = q;
+        updateQuoteDisplay();
+      }
+    });
+    // Botón de eliminar
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-button';
+    removeBtn.textContent = '✕';
+    removeBtn.addEventListener('click', () => {
+      delete quote[code];
+      updateQuoteDisplay();
+    });
+    // Insertar fila
+    tr.appendChild(createCell(item.codigo));
+    tr.appendChild(createCell(item.descripcion));
+    tr.appendChild(createCell(item.marca));
+    tr.appendChild(createCell(item.categoria));
+    const qtyTd = document.createElement('td');
+    qtyTd.appendChild(qtyInput);
+    tr.appendChild(qtyTd);
+    tr.appendChild(createCell(formatCurrency(item.precio)));
+    tr.appendChild(createCell(formatCurrency(subtotal)));
+    tr.appendChild(createCell(tipoTexto));
+    const selectTd = document.createElement('td');
+    selectTd.appendChild(select);
+    tr.appendChild(selectTd);
+    const removeTd = document.createElement('td');
+    removeTd.appendChild(removeBtn);
+    tr.appendChild(removeTd);
+    tbody.appendChild(tr);
+  });
+  document.getElementById('quoteTotalAmount').textContent = formatCurrency(total);
+}
+
+// Crea una celda de tabla con texto
+function createCell(text) {
+  const td = document.createElement('td');
+  td.textContent = text;
+  return td;
+}
