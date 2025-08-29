@@ -14,6 +14,9 @@ let quote = {};
 // Índice invertido de palabras clave en descripciones para búsqueda por descripción
 let descIndex = {};
 
+// Mapa de sinónimos a su término canónico. Por ejemplo { "paperclip": "clips" }
+let synonymsMap = {};
+
 // Inicializa la aplicación
 async function init() {
   // Cargar datos de productos
@@ -22,6 +25,26 @@ async function init() {
     products = await res.json();
   } catch (err) {
     console.error('Error al cargar la lista de precios:', err);
+  }
+
+  // Cargar tabla de sinónimos si existe
+  try {
+    const synRes = await fetch('synonyms.json');
+    const synData = await synRes.json();
+    // Construir el mapa de sinónimos a canonical en minúsculas
+    synData.forEach(({ canonical, synonyms }) => {
+      const canonicalLower = canonical.toLowerCase();
+      if (Array.isArray(synonyms)) {
+        synonyms.forEach((syn) => {
+          if (syn && typeof syn === 'string') {
+            synonymsMap[syn.toLowerCase()] = canonicalLower;
+          }
+        });
+      }
+    });
+  } catch (err) {
+    // No interrumpir la app si no existe el archivo
+    console.warn('No se pudo cargar synonyms.json o está mal formado:', err);
   }
 
   // Construir índice de descripciones después de cargar los productos
@@ -182,16 +205,19 @@ function buildDescIndex() {
     const text = prod.descripcion
       .toLowerCase()
       .replace(/[^a-z0-9 ]+/g, ' ');
+    // Crear un conjunto de tokens de al menos 4 caracteres
     const tokens = new Set(
       text
         .split(/\s+/)
-        .filter((w) => w.length >= 4) // solo palabras con longitud >=4
+        .filter((w) => w.length >= 4)
     );
     tokens.forEach((tok) => {
-      if (!descIndex[tok]) {
-        descIndex[tok] = [];
+      // Reemplazar por su sinónimo canónico si existe
+      const canonical = synonymsMap[tok] || tok;
+      if (!descIndex[canonical]) {
+        descIndex[canonical] = [];
       }
-      descIndex[tok].push(prod);
+      descIndex[canonical].push(prod);
     });
   });
 }
@@ -473,8 +499,10 @@ function handleFileUpload(event) {
       );
       const descCounts = {};
       descTokens.forEach((tok) => {
-        if (descIndex[tok]) {
-          descIndex[tok].forEach((prod) => {
+        // Normalizar cada token usando el mapa de sinónimos
+        const canonical = synonymsMap[tok] || tok;
+        if (descIndex[canonical]) {
+          descIndex[canonical].forEach((prod) => {
             descCounts[prod.codigo] = (descCounts[prod.codigo] || 0) + 1;
           });
         }
@@ -506,16 +534,24 @@ function handleFileUpload(event) {
         .map((l) => l.trim())
         .filter((l) => l.length > 0);
       lines.forEach((line) => {
-        const queryLine = line.toLowerCase();
-        let res = searchProducts(queryLine);
+        // Normalizar la línea a minúsculas
+        const rawLine = line.toLowerCase();
+        // Sustituir caracteres no alfanuméricos por espacio y dividir
+        const rawWords = rawLine.replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/);
+        // Aplicar sinónimos a cada palabra
+        const normalizedWords = rawWords.map((w) => {
+          const key = w.trim();
+          return synonymsMap[key] || key;
+        });
+        // Reconstruir la consulta normalizada
+        const normalizedQuery = normalizedWords.join(' ').trim();
+        let res = searchProducts(normalizedQuery);
         // Si no se encuentran resultados con la línea completa, intentar con las primeras palabras
         if (!res || res.length === 0) {
-          const words = queryLine
-            .replace(/[^a-z0-9 ]+/g, ' ')
-            .split(/\s+/)
-            .filter((w) => w.length >= 3);
-          if (words.length > 0) {
-            const phrase = words.slice(0, 3).join(' ');
+          // Seleccionar las primeras 3 palabras significativas
+          const validWords = normalizedWords.filter((w) => w.length >= 3);
+          if (validWords.length > 0) {
+            const phrase = validWords.slice(0, 3).join(' ');
             res = searchProducts(phrase);
           }
         }
