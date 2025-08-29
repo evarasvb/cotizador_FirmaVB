@@ -498,6 +498,41 @@ function handleFileUpload(event) {
     } catch (e) {
       console.error('Error al sugerir productos por descripción:', e);
     }
+
+    // Procesar cada línea del documento para sugerir productos basados en descripciones completas
+    try {
+      const lines = contentStr
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0);
+      lines.forEach((line) => {
+        const queryLine = line.toLowerCase();
+        let res = searchProducts(queryLine);
+        // Si no se encuentran resultados con la línea completa, intentar con las primeras palabras
+        if (!res || res.length === 0) {
+          const words = queryLine
+            .replace(/[^a-z0-9 ]+/g, ' ')
+            .split(/\s+/)
+            .filter((w) => w.length >= 3);
+          if (words.length > 0) {
+            const phrase = words.slice(0, 3).join(' ');
+            res = searchProducts(phrase);
+          }
+        }
+        if (res && res.length > 0) {
+          // Añadir solo el primer resultado como aproximado si no existe ya en el carrito
+          const item = res[0];
+          if (!cart[item.codigo]) {
+            cart[item.codigo] = { item: item, cantidad: 1, match: 'approx' };
+          } else {
+            // Si ya existe en el carrito, incrementar cantidad solo si ya era aproximado
+            cart[item.codigo].cantidad += 1;
+          }
+        }
+      });
+    } catch (err) {
+      console.error('Error al procesar líneas del documento para coincidencias por descripción:', err);
+    }
     // Actualizar la visualización del carrito tras procesar el archivo
     updateCartDisplay();
   };
