@@ -1,0 +1,18 @@
+[
+  {"canonical": "CLIPS", "synonyms": ["clip", "clips", "paper clip", "paperclip", "sujetapapeles", "sujeta papeles", "clip metálico", "fastener"]},
+  {"canonical": "CORCHETE", "synonyms": ["corchete", "corchetes", "grapa", "grapas", "staple", "stapler", "engrampadora"]},
+  {"canonical": "GRIP", "synonyms": ["grip", "agarre", "mango", "ergonómico", "ergonomic grip"]},
+  {"canonical": "STICKER", "synonyms": ["sticker", "stickers", "pegatina", "pegatinas", "adhesivo", "adhesivos", "calcomanía", "calcomanías", "etiqueta", "etiquetas"]},
+  {"canonical": "PUNTERA", "synonyms": ["puntera", "punteras", "protector punta", "tope"]},
+  {"canonical": "LIBRETA APUNTES", "synonyms": ["libreta", "libreta de apuntes", "cuaderno", "notebook", "notepad", "libreta apuntes"]},
+  {"canonical": "ETIQUETAS", "synonyms": ["etiqueta", "etiquetas", "labels", "label", "adhesivo", "adhesivos", "stickers"]},
+  {"canonical": "SOBRE PLASTICO", "synonyms": ["sobre plástico", "sobre plastico", "funda plástica", "funda plástica", "sobre plástico con cierre", "sobre con cierre", "carpeta plástica"]},
+  {"canonical": "ANILLO", "synonyms": ["anillo", "anillos", "folder ring", "carpeta", "archivador", "binder"]},
+  {"canonical": "CAFÉ", "synonyms": ["café", "cafe", "coffee", "nescafé", "nescafe", "instantáneo"]},
+  {"canonical": "VASO", "synonyms": ["vaso", "vasos", "cup", "cups", "taza", "copos", "copo", "recipiente"]},
+  {"canonical": "TIJERA", "synonyms": ["tijera", "tijeras", "scissors", "tesoura", "corta", "cortador"]},
+  {"canonical": "MOUSE", "synonyms": ["mouse", "ratón", "mause", "mouse ergonómico", "mouse vertical"]},
+  {"canonical": "DESECHABLE", "synonyms": ["desechable", "desechables", "descartable", "descartables", "disposable"]},
+  {"canonical": "ALIMENTO", "synonyms": ["alimento", "alimentos", "comida", "food", "consumible"]},
+  {"canonical": "ERGONOMIA", "synonyms": ["ergonomía", "ergonomic", "ergonomico", "ergonomic accessory", "salud laboral"]}
+]
