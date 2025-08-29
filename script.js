@@ -34,6 +34,12 @@ async function init() {
       displayResults(results);
     }
   });
+
+  // Configurar carga de archivos
+  const fileInput = document.getElementById('fileUpload');
+  if (fileInput) {
+    fileInput.addEventListener('change', handleFileUpload);
+  }
 }
 
 // Devuelve una lista de productos que coinciden con la consulta
@@ -175,11 +181,12 @@ function generateQuote() {
   quote = {};
   // Clonar elementos del carrito
   Object.keys(cart).forEach((code) => {
-    const { item, cantidad } = cart[code];
+    const { item, cantidad, match } = cart[code];
     quote[code] = {
       item: item,
       cantidad: cantidad,
-      match: true, // inicialmente se considera que es coincidencia exacta
+      // Usar la propiedad match del carrito si está definida, de lo contrario asumir coincidencia exacta
+      match: match !== undefined ? match : true,
     };
   });
   // Mostrar la sección de cotización
@@ -275,4 +282,56 @@ function createCell(text) {
   const td = document.createElement('td');
   td.textContent = text;
   return td;
+}
+
+// Maneja la carga de archivos para agregar productos automáticamente por código
+function handleFileUpload(event) {
+  const files = event.target.files;
+  if (!files || files.length === 0) {
+    return;
+  }
+  const file = files[0];
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const content = e.target.result;
+    // Convertir a texto y separar por líneas
+    const lines = content
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+    lines.forEach((line) => {
+      const code = line.toLowerCase();
+      // Intentar encontrar un producto que coincida exactamente con el código
+      const matchItem = products.find((p) => p.codigo.toLowerCase() === code);
+      if (matchItem) {
+        // Agregar coincidencia exacta al carrito
+        if (cart[matchItem.codigo]) {
+          cart[matchItem.codigo].cantidad += 1;
+        } else {
+          cart[matchItem.codigo] = { item: matchItem, cantidad: 1, match: true };
+        }
+      } else {
+        // Crear un ítem ficticio para marcar como equivalente
+        const placeholder = {
+          codigo: line,
+          descripcion: `Producto solicitado: ${line}`,
+          marca: 'N/A',
+          categoria: 'N/A',
+          precio: 0,
+        };
+        // Si ya existe el código ficticio, incrementar cantidad
+        if (cart[line]) {
+          cart[line].cantidad += 1;
+        } else {
+          cart[line] = { item: placeholder, cantidad: 1, match: false };
+        }
+      }
+    });
+    // Actualizar la visualización del carrito tras procesar el archivo
+    updateCartDisplay();
+  };
+  reader.onerror = function (err) {
+    console.error('Error al leer el archivo:', err);
+  };
+  reader.readAsText(file);
 }

@@ -18,8 +18,9 @@
   <main>
     <section class="upload-section">
       <h2>Subir documento</h2>
-      <p>Puede arrastrar y soltar un archivo (Word, Excel, PDF) o utilizar el botón de exploración. Por ahora esta funcionalidad es solo informativa, los archivos no se procesan automáticamente.</p>
-      <input type="file" id="fileUpload" multiple />
+      <p>Puede arrastrar y soltar un archivo o utilizar el botón de exploración. Para agregar productos automáticamente, suba un archivo de texto con códigos de producto (uno por línea). Otros formatos (Word, Excel, PDF) todavía no se procesan.</p>
+      <!-- Aceptamos solo archivos de texto por ahora -->
+      <input type="file" id="fileUpload" accept=".txt" />
     </section>
 
     <section class="search-section">
