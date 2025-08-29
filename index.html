@@ -18,9 +18,9 @@
   <main>
     <section class="upload-section">
       <h2>Subir documento</h2>
-      <p>Puede arrastrar y soltar un archivo o utilizar el botón de exploración. Para agregar productos automáticamente, suba un archivo de texto con códigos de producto (uno por línea). Otros formatos (Word, Excel, PDF) todavía no se procesan.</p>
-      <!-- Aceptamos solo archivos de texto por ahora -->
-      <input type="file" id="fileUpload" accept=".txt" />
+      <p>Puede arrastrar y soltar un archivo o utilizar el botón de exploración. Para agregar productos automáticamente, suba un documento que contenga códigos de producto; el sistema intentará encontrar coincidencias dentro de archivos de cualquier formato (Word, Excel, PDF, etc.).</p>
+      <!-- Se aceptan todos los tipos de archivo; la extracción de códigos se realiza de forma heurística -->
+      <input type="file" id="fileUpload" />
     </section>
 
     <section class="search-section">

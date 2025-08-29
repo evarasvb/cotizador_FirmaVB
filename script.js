@@ -293,38 +293,69 @@ function handleFileUpload(event) {
   const file = files[0];
   const reader = new FileReader();
   reader.onload = function (e) {
-    const content = e.target.result;
-    // Convertir a texto y separar por líneas
-    const lines = content
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
-    lines.forEach((line) => {
-      const code = line.toLowerCase();
-      // Intentar encontrar un producto que coincida exactamente con el código
-      const matchItem = products.find((p) => p.codigo.toLowerCase() === code);
+    let contentStr = '';
+    const result = e.target.result;
+    // Intentar convertir el contenido a cadena de texto
+    try {
+      if (typeof result === 'string') {
+        contentStr = result;
+      } else {
+        // Convertir ArrayBuffer o Blob a cadena
+        const bytes = new Uint8Array(result);
+        let chars = [];
+        // Convertir cada byte en un carácter (esto preserva cadenas ASCII)
+        for (let i = 0; i < bytes.length; i++) {
+          chars.push(String.fromCharCode(bytes[i]));
+        }
+        contentStr = chars.join('');
+      }
+    } catch (err) {
+      console.error('No se pudo leer el archivo como texto:', err);
+      return;
+    }
+    // Convertir a minúsculas para comparación sin distinción de mayúsculas/minúsculas
+    const lowerContent = contentStr.toLowerCase();
+    // Generar un Set de códigos de producto para búsqueda rápida
+    const productSet = new Set(products.map((p) => p.codigo.toLowerCase()));
+    // Dividir el contenido en tokens alfanuméricos usando caracteres no alfanuméricos como separadores
+    const tokens = lowerContent.split(/[^a-z0-9]+/);
+    const matchedCodes = new Set();
+    const unmatchedTokens = new Set();
+    tokens.forEach((tok) => {
+      if (!tok) return;
+      if (productSet.has(tok)) {
+        matchedCodes.add(tok);
+      } else {
+        // Considerar solo tokens con al menos un dígito y longitud razonable como posibles códigos no encontrados
+        if (/\d/.test(tok) && tok.length >= 3 && tok.length <= 10) {
+          unmatchedTokens.add(tok);
+        }
+      }
+    });
+    // Agregar coincidencias exactas al carrito
+    matchedCodes.forEach((codeLC) => {
+      const matchItem = products.find((p) => p.codigo.toLowerCase() === codeLC);
       if (matchItem) {
-        // Agregar coincidencia exacta al carrito
         if (cart[matchItem.codigo]) {
           cart[matchItem.codigo].cantidad += 1;
         } else {
           cart[matchItem.codigo] = { item: matchItem, cantidad: 1, match: true };
         }
+      }
+    });
+    // Agregar tokens no encontrados como equivalentes
+    unmatchedTokens.forEach((token) => {
+      const placeholder = {
+        codigo: token.toUpperCase(),
+        descripcion: `Producto solicitado: ${token.toUpperCase()}`,
+        marca: 'N/A',
+        categoria: 'N/A',
+        precio: 0,
+      };
+      if (cart[token.toUpperCase()]) {
+        cart[token.toUpperCase()].cantidad += 1;
       } else {
-        // Crear un ítem ficticio para marcar como equivalente
-        const placeholder = {
-          codigo: line,
-          descripcion: `Producto solicitado: ${line}`,
-          marca: 'N/A',
-          categoria: 'N/A',
-          precio: 0,
-        };
-        // Si ya existe el código ficticio, incrementar cantidad
-        if (cart[line]) {
-          cart[line].cantidad += 1;
-        } else {
-          cart[line] = { item: placeholder, cantidad: 1, match: false };
-        }
+        cart[token.toUpperCase()] = { item: placeholder, cantidad: 1, match: false };
       }
     });
     // Actualizar la visualización del carrito tras procesar el archivo
@@ -333,5 +364,6 @@ function handleFileUpload(event) {
   reader.onerror = function (err) {
     console.error('Error al leer el archivo:', err);
   };
-  reader.readAsText(file);
+  // Leer como ArrayBuffer para soportar archivos binarios (Word, Excel, PDF)
+  reader.readAsArrayBuffer(file);
 }
