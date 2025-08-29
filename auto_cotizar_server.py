@@ -47,6 +47,11 @@ from urllib.parse import urlparse
 import pandas as pd
 import difflib
 
+# New imports for sending e‑mail notifications
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 
 def cargar_lista_precios(path: str) -> pd.DataFrame:
     """Carga la lista de precios desde un archivo Excel y normaliza las columnas.
@@ -63,6 +68,55 @@ def cargar_lista_precios(path: str) -> pd.DataFrame:
     cols_to_drop = [c for c in df.columns if (isinstance(c, str) and (c.startswith('.') or c.strip() == ''))]
     df = df.drop(columns=cols_to_drop, errors='ignore')
     return df
+
+# --- Email utility ---------------------------------------------------------
+#
+# Esta función envía un correo electrónico con el contenido HTML de la
+# cotización generada. Se utilizan variables de entorno para las credenciales
+# SMTP para evitar que queden incrustadas en el código. Si las variables
+# necesarias no están definidas, la función simplemente devuelve sin hacer
+# nada.  Se puede configurar el servidor SMTP predeterminado (por ejemplo
+# smtp.gmail.com) y el puerto a través de las variables de entorno
+# SMTP_HOST y SMTP_PORT, respectivamente.
+
+def send_email(to_email: str, subject: str, html_body: str) -> None:
+    """Envía un correo electrónico en formato HTML a la dirección indicada.
+
+    Args:
+        to_email: Dirección de destino.
+        subject: Asunto del mensaje.
+        html_body: Cuerpo del mensaje en formato HTML.
+
+    La función utiliza las variables de entorno SMTP_USER y SMTP_PASS para
+    autenticar contra el servidor SMTP definido en SMTP_HOST (por defecto
+    'smtp.gmail.com') y SMTP_PORT (por defecto 587). Si alguna de las
+    credenciales no está configurada, se mostrará un mensaje en consola y
+    no se enviará ningún correo.
+    """
+    user = os.environ.get('SMTP_USER')
+    password = os.environ.get('SMTP_PASS')
+    host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+    port = int(os.environ.get('SMTP_PORT', '587'))
+    if not user or not password:
+        # Credenciales no configuradas; no enviamos el correo
+        print("[auto_cotizar_server] SMTP_USER/SMTP_PASS no configurados; omitiendo envío de correo.")
+        return
+    # Construir el mensaje MIME
+    msg = MIMEMultipart('alternative')
+    msg['From'] = user
+    msg['To'] = to_email
+    msg['Subject'] = subject
+    # Adjuntar la versión HTML
+    msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+    try:
+        with smtplib.SMTP(host, port) as server:
+            server.starttls()
+            server.login(user, password)
+            server.sendmail(user, [to_email], msg.as_string())
+        print(f"[auto_cotizar_server] Correo enviado a {to_email}")
+    except Exception as e:
+        # Registrar cualquier error pero no interrumpir el flujo principal
+        print(f"[auto_cotizar_server] Error al enviar el correo: {e}")
 
 
 class CotizarHTTPRequestHandler(BaseHTTPRequestHandler):
@@ -282,7 +336,22 @@ class CotizarHTTPRequestHandler(BaseHTTPRequestHandler):
         </body>
         </html>
         """)
-        self.wfile.write(salida.getvalue().encode('utf-8'))
+        # Obtener el HTML resultante de la cotización
+        html_result = salida.getvalue()
+        # Enviar la cotización por correo al área comercial
+        # El envío de correo se omite silenciosamente si no se configuran
+        # correctamente las credenciales SMTP en las variables de entorno.
+        try:
+            send_email(
+                to_email="contacto@firmavb.cl",
+                subject="Nueva cotización generada",
+                html_body=html_result
+            )
+        except Exception as e:
+            # No interrumpir el flujo si hay errores al enviar
+            print(f"[auto_cotizar_server] Excepción al enviar correo: {e}")
+        # Escribir la respuesta al cliente
+        self.wfile.write(html_result.encode('utf-8'))
 
 
 def run_server(lista_precios_path: str, port: int):
