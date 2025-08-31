@@ -112,6 +112,10 @@
     </tbody>
   </table>
   <div id="total">Total: CLP 0</div>
+  <!-- Información sobre formas de pago y condiciones de envío -->
+  <p id="paymentInfo" style="margin-top: 10px; font-style: italic;">
+    Formas de pago: <strong>Contado</strong> o <strong>Transferencia bancaria</strong>. El cliente paga su envío (retiro en Estación Central, RM, o despacho por pagar a través del courier de su elección).
+  </p>
   <button id="checkout">Enviar Pedido</button>
 
   <script>
@@ -220,6 +224,7 @@
           message += `- ${item.quantity} x ${item.Name} (${item.Code}) = ${formatPrice(item.Price_CLP * item.quantity)}\n`;
         });
         message += '\n' + document.getElementById('total').textContent;
+        message += '\n\nFormas de pago: Contado o Transferencia. El cliente paga su envío (retiro en Estación Central, RM, o despacho por pagar).';
         alert('Enviaremos el siguiente pedido para coordinar pago y entrega:\n\n' + message);
       });
     }
