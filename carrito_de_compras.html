@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carrito de Compras – Inventario FirmaVB</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .controls input,
+    .controls select {
+      padding: 8px;
+      font-size: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    th, td {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    tbody tr:nth-child(even) {
+      background-color: #fafafa;
+    }
+    .add-btn {
+      cursor: pointer;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .add-btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    #cartTable {
+      margin-top: 30px;
+    }
+    #total {
+      font-weight: bold;
+      font-size: 18px;
+      margin-top: 10px;
+    }
+    #checkout {
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #28a745;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Carrito de Compras – Inventario FirmaVB</h1>
+  <div class="controls">
+    <input type="text" id="search" placeholder="Buscar por código o nombre…">
+    <select id="availabilityFilter">
+      <option value="">Todas las disponibilidades</option>
+      <option value="Entrega inmediata">Entrega inmediata</option>
+      <option value="Tiempo a convenir">Tiempo a convenir</option>
+    </select>
+  </div>
+  <table id="productsTable">
+    <thead>
+      <tr>
+        <th>Código</th>
+        <th>Nombre</th>
+        <th>Precio (CLP)</th>
+        <th>Disponibilidad</th>
+        <th>Añadir</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Productos se insertarán aquí dinámicamente -->
+    </tbody>
+  </table>
+  <h2>Carrito de Compras</h2>
+  <table id="cartTable">
+    <thead>
+      <tr>
+        <th>Código</th>
+        <th>Nombre</th>
+        <th>Precio (CLP)</th>
+        <th>Cantidad</th>
+        <th>Subtotal</th>
+        <th>Eliminar</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Carrito se insertará aquí dinámicamente -->
+    </tbody>
+  </table>
+  <div id="total">Total: CLP 0</div>
+  <button id="checkout">Enviar Pedido</button>
+
+  <script>
+    // Estado del carrito
+    const cart = {};
+
+    // Cargar datos de inventario
+    async function loadInventory() {
+      const response = await fetch('aaa_inventory_products.json');
+      const data = await response.json();
+      return data;
+    }
+
+    function formatPrice(value) {
+      return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
+    }
+
+    function renderProducts(products) {
+      const tbody = document.querySelector('#productsTable tbody');
+      tbody.innerHTML = '';
+      products.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${item.Code}</td>
+          <td>${item.Name}</td>
+          <td>${formatPrice(item.Price_CLP)}</td>
+          <td>${item.Availability || ''}</td>
+          <td><button class="add-btn" data-code="${item.Code}">Añadir</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderCart() {
+      const tbody = document.querySelector('#cartTable tbody');
+      tbody.innerHTML = '';
+      let total = 0;
+      Object.values(cart).forEach(item => {
+        const subtotal = item.Price_CLP * item.quantity;
+        total += subtotal;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${item.Code}</td>
+          <td>${item.Name}</td>
+          <td>${formatPrice(item.Price_CLP)}</td>
+          <td><input type="number" min="1" value="${item.quantity}" data-code="${item.Code}" class="qty-input"></td>
+          <td>${formatPrice(subtotal)}</td>
+          <td><button class="remove-btn" data-code="${item.Code}">X</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+      document.getElementById('total').textContent = 'Total: ' + formatPrice(total);
+    }
+
+    function setupEventListeners(inventory) {
+      // Añadir al carrito
+      document.querySelector('#productsTable').addEventListener('click', e => {
+        if (e.target.classList.contains('add-btn')) {
+          const code = e.target.dataset.code;
+          const product = inventory.find(p => p.Code === code);
+          if (product) {
+            if (!cart[code]) {
+              cart[code] = { ...product, quantity: 1 };
+            } else {
+              cart[code].quantity++;
+            }
+            renderCart();
+          }
+        }
+      });
+      // Cambiar cantidad en el carrito
+      document.querySelector('#cartTable').addEventListener('change', e => {
+        if (e.target.classList.contains('qty-input')) {
+          const code = e.target.dataset.code;
+          const value = parseInt(e.target.value);
+          if (cart[code] && value >= 1) {
+            cart[code].quantity = value;
+            renderCart();
+          }
+        }
+      });
+      // Eliminar del carrito
+      document.querySelector('#cartTable').addEventListener('click', e => {
+        if (e.target.classList.contains('remove-btn')) {
+          const code = e.target.dataset.code;
+          delete cart[code];
+          renderCart();
+        }
+      });
+      // Filtros
+      document.getElementById('search').addEventListener('input', () => {
+        applyFilters(inventory);
+      });
+      document.getElementById('availabilityFilter').addEventListener('change', () => {
+        applyFilters(inventory);
+      });
+      // Checkout
+      document.getElementById('checkout').addEventListener('click', () => {
+        if (Object.keys(cart).length === 0) {
+          alert('El carrito está vacío.');
+          return;
+        }
+        // Generar mensaje de pedido
+        let message = 'Pedido:\n';
+        Object.values(cart).forEach(item => {
+          message += `- ${item.quantity} x ${item.Name} (${item.Code}) = ${formatPrice(item.Price_CLP * item.quantity)}\n`;
+        });
+        message += '\n' + document.getElementById('total').textContent;
+        alert('Enviaremos el siguiente pedido para coordinar pago y entrega:\n\n' + message);
+      });
+    }
+
+    function applyFilters(inventory) {
+      const term = document.getElementById('search').value.toLowerCase();
+      const availability = document.getElementById('availabilityFilter').value;
+      const filtered = inventory.filter(item => {
+        const matchesTerm =
+          item.Code.toLowerCase().includes(term) ||
+          item.Name.toLowerCase().includes(term);
+        const matchesAvail = !availability || (item.Availability || '') === availability;
+        return matchesTerm && matchesAvail;
+      });
+      renderProducts(filtered);
+    }
+
+    // Inicializar
+    loadInventory().then(inventory => {
+      // Ordenar por disponibilidad y nombre para mejor UX
+      inventory.sort((a, b) => {
+        if (a.Availability === b.Availability) {
+          return a.Name.localeCompare(b.Name);
+        }
+        return (a.Availability || '').localeCompare(b.Availability || '');
+      });
+      renderProducts(inventory);
+      setupEventListeners(inventory);
+    });
+  </script>
+</body>
+</html>
