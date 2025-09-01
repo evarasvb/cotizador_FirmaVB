@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catálogo de Productos – Inventario FirmaVB</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    #catalog {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+    }
+    .product-card {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      width: 220px;
+      padding: 10px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .product-card img {
+      width: 200px;
+      height: 150px;
+      object-fit: cover;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+    .product-card h3 {
+      margin: 0 0 5px 0;
+      font-size: 16px;
+      color: #333;
+    }
+    .product-card p {
+      margin: 2px 0;
+      font-size: 14px;
+      color: #555;
+    }
+    .product-card button {
+      margin-top: 10px;
+      padding: 8px 12px;
+      font-size: 14px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Catálogo de Productos – Inventario FirmaVB</h1>
+  <div id="catalog">
+    <!-- Los productos se insertarán aquí dinámicamente -->
+  </div>
+
+  <script>
+    // Función para cargar el inventario y crear el catálogo de productos
+    async function loadInventory() {
+      try {
+        const response = await fetch('aaa_inventory_products.json');
+        const data = await response.json();
+        return data.filter(item => item.Availability === 'Entrega inmediata');
+      } catch (error) {
+        console.error('Error al cargar el inventario:', error);
+        return [];
+      }
+    }
+
+    function createCatalog(products) {
+      const container = document.getElementById('catalog');
+      products.forEach(item => {
+        const card = document.createElement('div');
+        card.classList.add('product-card');
+        const img = document.createElement('img');
+        // Intentar cargar una imagen basada en el código del producto.
+        // Si la imagen no existe, usar un marcador de posición.
+        img.src = `fotografias/${item.Code.toLowerCase()}.png`;
+        img.onerror = () => {
+          img.src = 'https://via.placeholder.com/200x150?text=Sin+imagen';
+        };
+        const title = document.createElement('h3');
+        title.textContent = item.Name;
+        const code = document.createElement('p');
+        code.textContent = `Código: ${item.Code}`;
+        const category = document.createElement('p');
+        category.textContent = item.Category ? `Categoría: ${item.Category}` : '';
+        const price = document.createElement('p');
+        price.textContent = `Precio: ${new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(item.Price_CLP)}`;
+        const button = document.createElement('button');
+        button.textContent = 'Solicitar cotización';
+        button.addEventListener('click', () => {
+          const message = `Me interesa cotizar el producto ${item.Name} (código ${item.Code})`;
+          // Enviar mensaje vía correo electrónico (mailto) para solicitar cotización
+          const mailto = `mailto:ventas@tuempresa.cl?subject=Cotización%20${encodeURIComponent(item.Code)}&body=${encodeURIComponent(message)}`;
+          window.location.href = mailto;
+        });
+        card.appendChild(img);
+        card.appendChild(title);
+        card.appendChild(code);
+        if (category.textContent) card.appendChild(category);
+        card.appendChild(price);
+        card.appendChild(button);
+        container.appendChild(card);
+      });
+    }
+
+    // Inicializar catálogo
+    loadInventory().then(products => {
+      createCatalog(products);
+    });
+  </script>
+</body>
+</html>
