@@ -1,5 +1,7 @@
 /*
+
  * Script principal para el cotizador de FirmaVB.
+
  * Lee los datos de precios, permite buscar productos y manejarlos en un carrito.
  */
 
@@ -36,6 +38,7 @@ async function init() {
       const canonicalLower = canonical.toLowerCase();
       if (Array.isArray(synonyms)) {
         synonyms.forEach((syn) => {
+          
           if (syn && typeof syn === 'string') {
             synonymsMap[syn.toLowerCase()] = canonicalLower;
           }
@@ -461,9 +464,9 @@ function handleFileUpload(event) {
           }
         }
         // Considerar coincidencias con similitud >= 0.7 como alternativas
-        return bestSim >= 0.7 ? bestMatch : null;
+        return bestSim >= 0.7 ? bestMatch : null
       }
-      const similarItem = findSimilarProduct(token);
+      const similarItem = findSimilarProduct(token
       if (similarItem) {
         // Agregar como alternativa
         if (cart[similarItem.codigo]) {
@@ -532,6 +535,7 @@ function handleFileUpload(event) {
       const lines = contentStr
         .split(/\r?\n/)
         .map((l) => l.trim())
+
         .filter((l) => l.length > 0);
       lines.forEach((line) => {
         // Normalizar la línea a minúsculas
@@ -567,7 +571,8 @@ function handleFileUpload(event) {
         }
       });
     } catch (err) {
-      console.error('Error al procesar líneas del documento para coincidencias por descripción:', err);
+      con
+        sole.error('Error al procesar líneas del documento para coincidencias por descripción:', err);
     }
     // Actualizar la visualización del carrito tras procesar el archivo
     updateCartDisplay();
@@ -578,3 +583,39 @@ function handleFileUpload(event) {
   // Leer como ArrayBuffer para soportar archivos binarios (Word, Excel, PDF)
   reader.readAsArrayBuffer(file);
 }
+
+
+/* Override findSimilarProduct to improve matching by partial code and description */
+function findSimilarProduct(tok) {
+  let bestMatch = null;
+  let bestSim = 0;
+  const tokLower = tok.toLowerCase();
+  for (const prod of products) {
+    const codeLower = prod.codigo.toLowerCase();
+    const descLower = prod.descripcion.toLowerCase();
+    // Partial match by code or description
+    if (codeLower.includes(tokLower) || tokLower.includes(codeLower) || descLower.includes(tokLower)) {
+      return prod;
+    }
+    const dist = levenshteinDistance(tokLower, codeLower);
+    const maxLen = Math.max(tokLower.length, codeLower.length);
+    const sim = 1 - dist / maxLen;
+    if (sim > bestSim) {
+      bestSim = sim;
+      bestMatch = prod;
+    }
+  }
+  return bestSim >= 0.5 ? bestMatch : null;
+}
+
+// Show "Cotizar" button and attach click to generate quote after file upload
+document.addEventListener('DOMContentLoaded', () => {
+  const fileInput = document.getElementById('fileUpload');
+  const cotBtn = document.getElementById('cotizarFile');
+  if (fileInput && cotBtn) {
+    fileInput.addEventListener('change', () => {
+      cotBtn.style.display = 'block';
+      cotBtn.onclick = () => generateQuote();
+    });
+  }
+});
